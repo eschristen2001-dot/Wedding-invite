@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Wedding Invite</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Great+Vibes&display=swap" rel="stylesheet">
+
+<style>
+body {
+  margin:0;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+  background: linear-gradient(135deg, #f7e7d3, #f2d8b5);
+}
+
+body::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  background: radial-gradient(circle at center, transparent 60%, rgba(0,0,0,0.15));
+  pointer-events:none;
+}
+
+/* INTRO */
+.intro {
+  position:absolute;
+  inset:0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:20;
+  animation: fadeOut 2s ease 2.5s forwards;
+}
+
+.intro-text {
+  font-family:'Great Vibes', cursive;
+  font-size:clamp(40px,6vw,70px);
+  color:#d4af37;
+  opacity:0;
+  animation:fadeIn 2s forwards;
+}
+
+@keyframes fadeIn { to {opacity:1;} }
+@keyframes fadeOut { to {opacity:0; visibility:hidden;} }
+
+/* TAP HINT */
+.tap-hint {
+  position:absolute;
+  bottom:80px;
+  font-family:'Playfair Display', serif;
+  font-size:18px;
+  opacity:0;
+  transition:opacity 1s;
+}
+
+/* REPLAY */
+#replay {
+  position:absolute;
+  top:20px;
+  right:20px;
+  font-family:'Playfair Display', serif;
+  cursor:pointer;
+  display:none;
+  opacity:0.6;
+}
+
+/* ENVELOPE */
+.envelope {
+  width:340px;
+  height:230px;
+  position:absolute;
+  cursor:pointer;
+  perspective:1200px;
+  opacity:0;
+  transform: translateY(20px);
+  animation:fadeIn 1s 2.5s forwards;
+}
+
+.envelope-body {
+  position:absolute;
+  width:100%;
+  height:100%;
+  background: linear-gradient(145deg, #f4c7b8, #c7d6c2);
+  border-radius:10px;
+}
+
+.flap {
+  position:absolute;
+  width:100%;
+  height:100%;
+  background: linear-gradient(145deg, #f2b8a8, #bcd3bc);
+  clip-path: polygon(0 0, 50% 55%, 100% 0);
+  transform-origin: top center;
+  transition: transform 1.1s cubic-bezier(.2,.8,.2,1);
+  backface-visibility:hidden;
+  z-index:3;
+}
+
+.envelope.open .flap {
+  transform: rotateX(-165deg);
+}
+
+.envelope.fall {
+  transform: translateY(900px) rotate(18deg);
+  opacity:0;
+  transition: all 1.6s cubic-bezier(.2,.8,.2,1);
+}
+
+/* SEAL */
+.seal {
+  position:absolute;
+  width:45px;
+  height:45px;
+  background:#d97b7b;
+  left:50%;
+  top:52%;
+  transform:translate(-50%, -50%) rotate(45deg);
+  z-index:10;
+}
+
+.seal::before,
+.seal::after {
+  content:"";
+  position:absolute;
+  width:45px;
+  height:45px;
+  background:#d97b7b;
+  border-radius:50%;
+}
+
+.seal::before { top:-22px; }
+.seal::after { left:-22px; }
+
+.seal.crack {
+  transform: translate(-50%, -50%) rotate(45deg) scale(0.92);
+  transition: all 1.4s cubic-bezier(.2,.9,.2,1);
+}
+
+.seal.drop {
+  transform: translate(-50%, -50%) rotate(45deg) translateY(420px) rotate(240deg);
+  opacity:0;
+  transition: all 1.4s cubic-bezier(.2,.9,.2,1);
+}
+
+/* CARD */
+.card-container {
+  display:none;
+  perspective:1400px;
+  touch-action:none;
+}
+
+.card {
+  width:min(92vw,720px);
+  aspect-ratio:5/7;
+  transform-style:preserve-3d;
+}
+
+.side {
+  position:absolute;
+  width:100%;
+  height:100%;
+  backface-visibility:hidden;
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center;
+  border-radius:14px;
+}
+.back { transform:rotateY(180deg); }
+
+/* HINT */
+.hint {
+  position:absolute;
+  bottom:20px;
+  font-size:14px;
+  opacity:0.5;
+  display:none;
+  font-family:'Playfair Display', serif;
+}
+</style>
+</head>
+
+<body>
+
+<div class="intro"><div class="intro-text">The Christens</div></div>
+
+<audio id="openSound" src="envelope.mp3"></audio>
+<audio id="music" src="music.mp3" loop></audio>
+
+<div class="tap-hint" id="tapHint">Tap the seal 💌</div>
+<div id="replay">Replay</div>
+
+<div class="envelope" id="envelope">
+  <div class="envelope-body"></div>
+  <div class="flap"></div>
+  <div class="seal" id="seal"></div>
+</div>
+
+<div class="card-container" id="cardContainer">
+  <div class="card" id="card">
+    <div class="side front" style="background-image:url('front.JPEG')"></div>
+    <div class="side back" style="background-image:url('back.JPEG')"></div>
+  </div>
+</div>
+
+<div class="hint" id="hint">Swipe to rotate • Pinch to zoom</div>
+
+<script>
+const envelope = document.getElementById("envelope");
+const seal = document.getElementById("seal");
+const cardContainer = document.getElementById("cardContainer");
+const card = document.getElementById("card");
+const tapHint = document.getElementById("tapHint");
+const replay = document.getElementById("replay");
+const hint = document.getElementById("hint");
+const openSound = document.getElementById("openSound");
+const music = document.getElementById("music");
+
+let opened = false;
+
+/* INTRO → SHOW TAP HINT ONLY AFTER ENVELOPE EXISTS */
+setTimeout(() => {
+  tapHint.style.opacity = 1;
+}, 3000);
+
+/* REPLAY FIX */
+replay.addEventListener("click", () => location.reload());
+
+function openEnvelope(){
+if(opened) return;
+opened = true;
+
+tapHint.style.opacity = 0;
+
+openSound.play();
+
+seal.classList.add("crack");
+
+setTimeout(() => seal.classList.add("drop"), 200);
+setTimeout(() => envelope.classList.add("open"), 350);
+
+setTimeout(() => {
+music.volume = 0;
+music.play();
+let v = 0;
+let fade = setInterval(() => {
+if(v < 0.4){ v += 0.02; music.volume = v; }
+else clearInterval(fade);
+}, 80);
+}, 400);
+
+setTimeout(() => envelope.classList.add("fall"), 1100);
+
+setTimeout(() => {
+cardContainer.style.display = "block";
+hint.style.display = "block";
+replay.style.display = "block";
+}, 1300);
+}
+
+/* attach click safely */
+envelope.addEventListener("click", openEnvelope);
+
+/* SIMPLE ROTATION (kept minimal for stability) */
+let rot = 0, velocity = 0, dragging = false, lastX = 0;
+
+function update(){
+card.style.transform = `rotateY(${rot}deg)`;
+}
+
+card.addEventListener("mousedown", e => {
+dragging = true;
+lastX = e.clientX;
+});
+
+window.addEventListener("mousemove", e => {
+if(!dragging) return;
+let dx = e.clientX - lastX;
+lastX = e.clientX;
+rot += dx * 0.5;
+velocity = dx * 0.5;
+update();
+});
+
+window.addEventListener("mouseup", () => {
+dragging = false;
+});
+</script>
+
+</body>
+</html>
