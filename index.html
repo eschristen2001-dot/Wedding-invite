@@ -201,7 +201,7 @@ body::after {
   width: min(86vw, 400px);
   aspect-ratio: 5 / 7;
   transform-style: preserve-3d;
-  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* smooth snap */
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
   cursor: grab;
   will-change: transform;
 }
@@ -260,7 +260,7 @@ body::after {
   </div>
 </div>
 
-<div class="hint" id="hint">Swipe to rotate • Release to snap • Pinch anywhere to zoom</div>
+<div class="hint" id="hint">Swipe to rotate • Release to snap • Double tap to reset</div>
 
 <script>
 (function () {
@@ -279,7 +279,7 @@ body::after {
   const music = document.getElementById('music');
 
   tapHint.textContent = isMobile ? 'Tap the seal 💌' : 'Click the seal 💌';
-  hint.textContent = 'Swipe to rotate • Release to snap • Pinch anywhere to zoom';
+  hint.textContent = 'Swipe to rotate • Release to snap • Double tap to reset';
 
   setTimeout(() => { tapHint.style.opacity = 1; }, 3300);
 
@@ -292,6 +292,7 @@ body::after {
   let panX = 0;
   let panY = 0;
   let snapTimeout = null;
+  let lastTapTime = 0;
   const MIN_SCALE = 1.0;
   const MAX_SCALE = 5.0;
 
@@ -308,11 +309,11 @@ body::after {
   }
 
   function snapToNearestSide() {
-    const normalizedRot = ((rot % 360) + 360) % 360;   // keep between 0-360
-    if (normalizedRot < 90 || normalizedRot > 270) {
-      rot = Math.round(rot / 360) * 360;        // snap to front (0°)
+    const normalized = ((rot % 360) + 360) % 360;
+    if (normalized < 90 || normalized > 270) {
+      rot = Math.round(rot / 360) * 360;        // front
     } else {
-      rot = Math.round(rot / 360) * 360 + 180;  // snap to back (180°)
+      rot = Math.round(rot / 360) * 360 + 180;  // back
     }
     applyTransform();
   }
@@ -373,19 +374,31 @@ body::after {
     openEnvelope();
   }, { passive: false });
 
-  /* ====================== TOUCH GESTURES ====================== */
+  /* ====================== GESTURES ====================== */
   let lastPinchDist = 0;
   let isDragging = false;
 
+  // Double tap detection
+  function handleDoubleTap(e) {
+    const now = Date.now();
+    if (now - lastTapTime < 300) {        // 300ms threshold for double tap
+      resetTransform();
+      lastTapTime = 0;
+    } else {
+      lastTapTime = now;
+    }
+  }
+
   cardContainer.addEventListener('touchstart', (e) => {
     isDragging = true;
+    handleDoubleTap(e);                    // Check for double tap
+
     if (e.touches.length === 2) {
       lastPinchDist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
     }
-    // Clear any pending snap when user touches again
     if (snapTimeout) clearTimeout(snapTimeout);
   }, { passive: false });
 
@@ -393,16 +406,12 @@ body::after {
     if (!isDragging) return;
 
     if (e.touches.length === 1) {
-      // Rotation
-      // For simplicity we use horizontal movement only (feels better for Y-axis cards)
       const dx = e.touches[0].clientX - (window.lastTouchX || e.touches[0].clientX);
       rot += dx * 0.65;
       applyTransform();
-
       window.lastTouchX = e.touches[0].clientX;
     } 
     else if (e.touches.length === 2) {
-      // Pinch zoom toward midpoint
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -423,12 +432,11 @@ body::after {
     lastPinchDist = 0;
     window.lastTouchX = null;
 
-    // Start snap timer after user releases finger
     if (snapTimeout) clearTimeout(snapTimeout);
-    snapTimeout = setTimeout(snapToNearestSide, 500);   // 0.5 seconds delay
+    snapTimeout = setTimeout(snapToNearestSide, 500);
   });
 
-  // Optional: Mouse support for desktop
+  // Desktop mouse support
   let mouseDragging = false;
   let lastMouseX = 0;
 
@@ -451,6 +459,9 @@ body::after {
     if (snapTimeout) clearTimeout(snapTimeout);
     snapTimeout = setTimeout(snapToNearestSide, 500);
   });
+
+  // Double click support for desktop
+  card.addEventListener('dblclick', resetTransform);
 
 })();
 </script>
