@@ -92,24 +92,30 @@ body::after {
   z-index: 10;
 }
 
-/* REPLAY */
-#replay {
+/* BUTTONS */
+#replay, #addToCalendar {
   position: absolute;
   top: 20px;
-  right: 20px;
   font-size: clamp(17px, 3vw, 23px);
   cursor: pointer;
   display: none;
-  opacity: 0.8;
+  opacity: 0.85;
   z-index: 50;
   color: #5a3e28;
-  padding: 10px 16px;
+  padding: 10px 18px;
   border-radius: 30px;
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.75);
   backdrop-filter: blur(8px);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border: none;
 }
-#replay:hover { opacity: 1; transform: scale(1.05); }
+#replay:hover, #addToCalendar:hover { 
+  opacity: 1; 
+  transform: scale(1.06); 
+}
+#replay { right: 20px; }
+#addToCalendar { left: 20px; }
 
 /* ENVELOPE */
 .envelope {
@@ -142,9 +148,7 @@ body::after {
   z-index: 3;
   border-radius: 14px 14px 0 0;
 }
-.envelope.open .flap {
-  transform: rotateX(-165deg);
-}
+.envelope.open .flap { transform: rotateX(-165deg); }
 .envelope.fall {
   transform: translateY(130vh) rotate(22deg);
   opacity: 0;
@@ -251,6 +255,7 @@ body::after {
 
 <div class="tap-hint" id="tapHint">Tap the seal 💌</div>
 <div id="replay">↺ Replay</div>
+<button id="addToCalendar">📅 Save to Google Calendar</button>
 
 <div class="envelope" id="envelope">
   <div class="envelope-body"></div>
@@ -271,12 +276,23 @@ body::after {
 (function () {
   'use strict';
 
+  // ================== CHANGE THESE TO YOUR WEDDING DETAILS ==================
+  const wedding = {
+    title: "The Christens Wedding",
+    start: "2026-06-15T17:00:00",     // YYYY-MM-DDTHH:MM:SS (24-hour format)
+    end:   "2026-06-15T20:00:00",
+    location: "2760 Wild Horse Ridge, Pocatello, Idaho",
+    description: "We can't wait to celebrate with you!\\n\\nDress code: Dressy-Casual."
+  };
+  // =========================================================================
+
   const envelope = document.getElementById('envelope');
   const seal = document.getElementById('seal');
   const cardContainer = document.getElementById('cardContainer');
   const card = document.getElementById('card');
   const tapHint = document.getElementById('tapHint');
   const replayBtn = document.getElementById('replay');
+  const addCalendarBtn = document.getElementById('addToCalendar');
   const hint = document.getElementById('hint');
   const openSound = document.getElementById('openSound');
   const music = document.getElementById('music');
@@ -287,6 +303,20 @@ body::after {
 
   replayBtn.addEventListener('click', () => location.reload());
   replayBtn.addEventListener('touchstart', (e) => { e.preventDefault(); location.reload(); }, { passive: false });
+
+  // Open directly in Google Calendar
+  addCalendarBtn.addEventListener('click', () => {
+    const start = wedding.start.replace(/[:-]/g, '');
+    const end = wedding.end.replace(/[:-]/g, '');
+
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+                `&text=${encodeURIComponent(wedding.title)}` +
+                `&dates=${start}/${end}` +
+                `&details=${encodeURIComponent(wedding.description)}` +
+                `&location=${encodeURIComponent(wedding.location)}`;
+
+    window.open(url, '_blank');
+  });
 
   let opened = false;
   let rot = 0;
@@ -366,6 +396,7 @@ body::after {
       cardContainer.style.display = 'flex';
       hint.style.display = 'block';
       replayBtn.style.display = 'block';
+      addCalendarBtn.style.display = 'block';
       resetTransform();
     }, 1500);
   }
@@ -376,7 +407,7 @@ body::after {
     openEnvelope();
   }, { passive: false });
 
-  /* ====================== TOUCH GESTURES ====================== */
+  /* ====================== GESTURES ====================== */
   let isDragging = false;
   let lastPinchDist = 0;
 
@@ -409,21 +440,19 @@ body::after {
       const dy = e.touches[0].clientY - lastTouchY;
 
       if (scale > 1.05) {
-        // Zoomed in → PAN (drag to see different parts)
+        // Zoomed → Pan
         panX += dx * 0.9;
         panY += dy * 0.9;
       } else {
-        // Not zoomed → ROTATE
+        // Normal zoom → Rotate
         rot += dx * 0.68;
       }
 
       applyTransform();
-
       lastTouchX = e.touches[0].clientX;
       lastTouchY = e.touches[0].clientY;
     } 
     else if (e.touches.length === 2) {
-      // Pinch zoom
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
