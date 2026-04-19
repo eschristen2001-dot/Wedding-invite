@@ -163,7 +163,7 @@ body::after {
   cursor: pointer;
 }
 
-/* ENVELOPE + CARD styles (unchanged) */
+/* ENVELOPE */
 .envelope {
   width: clamp(290px, 80vw, 370px);
   height: clamp(200px, 55vw, 260px);
@@ -201,6 +201,42 @@ body::after {
   transition: all 1.8s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
+/* SEAL - RESTORED EXACTLY AS YOU HAD IT */
+.seal {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  left: 50%;
+  top: 51%;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  z-index: 10;
+  cursor: pointer;
+  background: #d97b7b;
+  border-radius: 8px;
+  will-change: transform, opacity;
+  transition: transform 0.35s ease;
+}
+.seal::before,
+.seal::after {
+  content: "";
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  background: #d97b7b;
+  border-radius: 50%;
+}
+.seal::before { top: -28px; left: 0; }
+.seal::after { left: 28px; top: 0; }
+.seal.crack {
+  transform: translate(-50%, -50%) rotate(-45deg) scale(0.88);
+}
+.seal.drop {
+  transform: translate(-50%, -50%) rotate(-45deg) translateY(500px) scale(0.75);
+  opacity: 0;
+  transition: all 1.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* CARD */
 .card-container {
   display: none;
   justify-content: center;
@@ -235,6 +271,7 @@ body::after {
 }
 .back { transform: rotateY(180deg); }
 
+/* HINT */
 .hint {
   position: absolute;
   bottom: clamp(18px, 5vh, 32px);
@@ -294,13 +331,13 @@ body::after {
 (function () {
   'use strict';
 
-  // ================== CHANGE THESE TO YOUR ACTUAL WEDDING DETAILS ==================
+  // ================== CHANGE THESE TO YOUR WEDDING DETAILS ==================
   const wedding = {
     title: "The Christen's Reception",
-    start: "2026-06-06T17:00:00",     // Format: YYYY-MM-DDTHH:MM:SS
+    start: "2026-06-06T17:00:00",     // YYYY-MM-DDTHH:MM:SS
     end:   "2026-06-06T20:00:00",
-    location: "2760 Wildhorse Rdg, Pocatello, Idaho",
-    description: "We can't wait to celebrate with you! Dress code: Dressy-Casual"
+    location: "2760 Wild Horse Ridge, Pocatello, Idaho",
+    description: "We can't wait to celebrate with you! Dress code: Formal"
   };
   // =========================================================================
 
@@ -328,7 +365,7 @@ body::after {
   replayBtn.addEventListener('click', () => location.reload());
   replayBtn.addEventListener('touchstart', (e) => { e.preventDefault(); location.reload(); }, { passive: false });
 
-  // Show popup when "Save to Calendar" is clicked
+  // Show calendar popup
   addCalendarBtn.addEventListener('click', () => {
     calendarPopup.style.display = 'block';
   });
@@ -346,7 +383,7 @@ body::after {
     calendarPopup.style.display = 'none';
   });
 
-  // Apple Calendar + Other (downloads .ics)
+  // Apple + Other (download .ics)
   function downloadICS() {
     const start = wedding.start.replace(/[:-]/g, '');
     const end = wedding.end.replace(/[:-]/g, '');
@@ -390,7 +427,7 @@ END:VCALENDAR`;
     calendarPopup.style.display = 'none';
   });
 
-  // ================== Your existing openEnvelope + gestures code ==================
+  // ================== OPEN ENVELOPE + GESTURES ==================
   let opened = false;
   let rot = 0;
   let scale = 1.0;
