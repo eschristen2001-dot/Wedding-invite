@@ -117,7 +117,53 @@ body::after {
 #replay { right: 20px; }
 #addToCalendar { left: 20px; }
 
-/* ENVELOPE */
+/* CALENDAR POPUP */
+#calendarPopup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 28px 32px;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  z-index: 100;
+  width: 90%;
+  max-width: 340px;
+  text-align: center;
+}
+#calendarPopup h3 {
+  margin: 0 0 24px 0;
+  font-size: 1.4rem;
+  color: #5a3e28;
+}
+.calendar-option {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  margin: 10px 0;
+  background: #f8f1e3;
+  border: none;
+  border-radius: 14px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.calendar-option:hover {
+  background: #f4d9b8;
+  transform: translateY(-2px);
+}
+#closePopup {
+  margin-top: 12px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* ENVELOPE + CARD styles (unchanged) */
 .envelope {
   width: clamp(290px, 80vw, 370px);
   height: clamp(200px, 55vw, 260px);
@@ -155,42 +201,6 @@ body::after {
   transition: all 1.8s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* SEAL */
-.seal {
-  position: absolute;
-  width: 56px;
-  height: 56px;
-  left: 50%;
-  top: 51%;
-  transform: translate(-50%, -50%) rotate(-45deg);
-  z-index: 10;
-  cursor: pointer;
-  background: #d97b7b;
-  border-radius: 8px;
-  will-change: transform, opacity;
-  transition: transform 0.35s ease;
-}
-.seal::before,
-.seal::after {
-  content: "";
-  position: absolute;
-  width: 56px;
-  height: 56px;
-  background: #d97b7b;
-  border-radius: 50%;
-}
-.seal::before { top: -28px; left: 0; }
-.seal::after { left: 28px; top: 0; }
-.seal.crack {
-  transform: translate(-50%, -50%) rotate(-45deg) scale(0.88);
-}
-.seal.drop {
-  transform: translate(-50%, -50%) rotate(-45deg) translateY(500px) scale(0.75);
-  opacity: 0;
-  transition: all 1.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-/* CARD */
 .card-container {
   display: none;
   justify-content: center;
@@ -225,7 +235,6 @@ body::after {
 }
 .back { transform: rotateY(180deg); }
 
-/* HINT */
 .hint {
   position: absolute;
   bottom: clamp(18px, 5vh, 32px);
@@ -272,16 +281,25 @@ body::after {
 
 <div class="hint" id="hint">Swipe to rotate • Drag when zoomed to pan • Double tap to reset</div>
 
+<!-- Calendar Choice Popup -->
+<div id="calendarPopup">
+  <h3>Add to Calendar</h3>
+  <button class="calendar-option" id="googleOption">🌐 Google Calendar</button>
+  <button class="calendar-option" id="appleOption"> Apple Calendar</button>
+  <button class="calendar-option" id="icsOption">📥 Other Calendars</button>
+  <button class="close-btn" id="closePopup">Cancel</button>
+</div>
+
 <script>
 (function () {
   'use strict';
 
-  // ================== CHANGE THESE TO YOUR WEDDING DETAILS ==================
+  // ================== CHANGE THESE TO YOUR ACTUAL WEDDING DETAILS ==================
   const wedding = {
-    title: "The Christens Reception",
-    start: "2026-06-15T17:00:00",     // YYYY-MM-DDTHH:MM:SS (24-hour format)
-    end:   "2026-06-15T20:00:00",
-    location: "2760 Wild Horse Ridge, Pocatello, Idaho",
+    title: "The Christen's Reception",
+    start: "2026-06-06T17:00:00",     // Format: YYYY-MM-DDTHH:MM:SS
+    end:   "2026-06-06T20:00:00",
+    location: "2760 Wildhorse Rdg, Pocatello, Idaho",
     description: "We can't wait to celebrate with you! Dress code: Dressy-Casual"
   };
   // =========================================================================
@@ -297,6 +315,12 @@ body::after {
   const openSound = document.getElementById('openSound');
   const music = document.getElementById('music');
 
+  const calendarPopup = document.getElementById('calendarPopup');
+  const googleOption = document.getElementById('googleOption');
+  const appleOption = document.getElementById('appleOption');
+  const icsOption = document.getElementById('icsOption');
+  const closePopup = document.getElementById('closePopup');
+
   tapHint.textContent = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'Tap the seal 💌' : 'Click the seal 💌';
 
   setTimeout(() => { tapHint.style.opacity = 1; }, 3300);
@@ -304,20 +328,69 @@ body::after {
   replayBtn.addEventListener('click', () => location.reload());
   replayBtn.addEventListener('touchstart', (e) => { e.preventDefault(); location.reload(); }, { passive: false });
 
-  // Open directly in Google Calendar
+  // Show popup when "Save to Calendar" is clicked
   addCalendarBtn.addEventListener('click', () => {
+    calendarPopup.style.display = 'block';
+  });
+
+  // Google Calendar
+  googleOption.addEventListener('click', () => {
     const start = wedding.start.replace(/[:-]/g, '');
     const end = wedding.end.replace(/[:-]/g, '');
-
     const url = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
                 `&text=${encodeURIComponent(wedding.title)}` +
                 `&dates=${start}/${end}` +
                 `&details=${encodeURIComponent(wedding.description)}` +
                 `&location=${encodeURIComponent(wedding.location)}`;
-
     window.open(url, '_blank');
+    calendarPopup.style.display = 'none';
   });
 
+  // Apple Calendar + Other (downloads .ics)
+  function downloadICS() {
+    const start = wedding.start.replace(/[:-]/g, '');
+    const end = wedding.end.replace(/[:-]/g, '');
+
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Christens Wedding//Invitation//EN
+BEGIN:VEVENT
+UID:wedding-${Date.now()}@christen-invite.com
+DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').split('.')[0]}Z
+DTSTART:${start}
+DTEND:${end}
+SUMMARY:${wedding.title}
+LOCATION:${wedding.location}
+DESCRIPTION:${wedding.description.replace(/\n/g, '\\n')}
+END:VEVENT
+END:VCALENDAR`;
+
+    const blob = new Blob([icsContent], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Christens-Wedding.ics';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  appleOption.addEventListener('click', () => {
+    downloadICS();
+    calendarPopup.style.display = 'none';
+  });
+
+  icsOption.addEventListener('click', () => {
+    downloadICS();
+    calendarPopup.style.display = 'none';
+  });
+
+  closePopup.addEventListener('click', () => {
+    calendarPopup.style.display = 'none';
+  });
+
+  // ================== Your existing openEnvelope + gestures code ==================
   let opened = false;
   let rot = 0;
   let scale = 1.0;
@@ -407,16 +480,13 @@ body::after {
     openEnvelope();
   }, { passive: false });
 
-  /* ====================== GESTURES ====================== */
   let isDragging = false;
   let lastPinchDist = 0;
 
   cardContainer.addEventListener('touchstart', (e) => {
     isDragging = true;
     const now = Date.now();
-    if (now - lastTapTime < 300) {
-      resetTransform();
-    }
+    if (now - lastTapTime < 300) resetTransform();
     lastTapTime = now;
 
     if (e.touches.length === 1) {
@@ -428,7 +498,6 @@ body::after {
         e.touches[0].clientY - e.touches[1].clientY
       );
     }
-
     if (snapTimeout) clearTimeout(snapTimeout);
   }, { passive: false });
 
@@ -440,19 +509,15 @@ body::after {
       const dy = e.touches[0].clientY - lastTouchY;
 
       if (scale > 1.05) {
-        // Zoomed → Pan
         panX += dx * 0.9;
         panY += dy * 0.9;
       } else {
-        // Normal zoom → Rotate
         rot += dx * 0.68;
       }
-
       applyTransform();
       lastTouchX = e.touches[0].clientX;
       lastTouchY = e.touches[0].clientY;
-    } 
-    else if (e.touches.length === 2) {
+    } else if (e.touches.length === 2) {
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -471,15 +536,13 @@ body::after {
   cardContainer.addEventListener('touchend', () => {
     isDragging = false;
     lastPinchDist = 0;
-
     if (snapTimeout) clearTimeout(snapTimeout);
     snapTimeout = setTimeout(snapToNearestSide, 480);
   });
 
   // Desktop mouse support
   let mouseDragging = false;
-  let lastMouseX = 0;
-  let lastMouseY = 0;
+  let lastMouseX = 0, lastMouseY = 0;
 
   card.addEventListener('mousedown', (e) => {
     mouseDragging = true;
@@ -500,7 +563,6 @@ body::after {
       rot += dx * 0.68;
     }
     applyTransform();
-
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
   });
